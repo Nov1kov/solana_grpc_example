@@ -1,6 +1,8 @@
 use std::collections::HashMap;
-use std::time::{ SystemTime, UNIX_EPOCH };
-use yellowstone_grpc_client::{ GeyserGrpcClient, Interceptor };
+use std::str::FromStr;
+use std::time::{SystemTime, UNIX_EPOCH };
+use solana_sdk::pubkey::Pubkey;
+use yellowstone_grpc_client::{GeyserGrpcClient, Interceptor };
 use yellowstone_grpc_proto::geyser::{
     CommitmentLevel,
     SubscribeRequest,
@@ -9,6 +11,7 @@ use yellowstone_grpc_proto::geyser::{
 use yellowstone_grpc_proto::geyser::subscribe_update::UpdateOneof;
 use yellowstone_grpc_proto::tonic::codegen::tokio_stream::StreamExt;
 use tracing::*;
+use crate::wallet::Wallet;
 
 pub fn get_block_subscribe_request() -> SubscribeRequest {
     let mut blocks = HashMap::new();
@@ -36,7 +39,8 @@ pub fn get_block_subscribe_request() -> SubscribeRequest {
 
 pub async fn geyser_subscribe(
     mut _client: GeyserGrpcClient<impl Interceptor>,
-    request: SubscribeRequest
+    request: SubscribeRequest,
+    wallet: &Wallet
 ) -> anyhow::Result<()> {
     let (mut subscribe_tx, mut stream) = _client.subscribe_with_request(Some(request)).await?;
 
@@ -53,9 +57,11 @@ pub async fn geyser_subscribe(
                             .duration_since(UNIX_EPOCH)
                             .expect("Time went backwards")
                             .as_secs() as i64;
-                        let transactions: Vec<yellowstone_grpc_proto::prelude::SubscribeUpdateTransactionInfo> =
-                            msg.transactions;
-                        info!("slot: {}, block time: {}, block: {}", slot, block_time, block_hash);
+                        if let Ok(pubkey) = Pubkey::from_str("DSUby69eVtXoDnmaQ4qQQtS5fJeE2omXWBA2qCxe8yTg") {
+                            if let Ok(tx) = wallet.sign_sol_transfer(&pubkey, 10000, block_hash) {
+                                println!("tx: {}", tx);
+                            }
+                        }
                     }
                     Some(UpdateOneof::Ping(_)) => {
                         info!("ping");

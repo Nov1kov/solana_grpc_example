@@ -1,6 +1,7 @@
 mod config;
 mod geyser;
 mod wallet;
+mod shyft_api;
 
 use std::str::FromStr;
 use std::time::Duration;
@@ -68,9 +69,11 @@ async fn main() -> anyhow::Result<()> {
         .connect().await
         .unwrap();
 
+    let wallet = wallet::Wallet::new(&settings.wallet.private_key);
+
     let request = geyser::get_block_subscribe_request();
 
-    geyser::geyser_subscribe(client, request).await?;
+    geyser::geyser_subscribe(client, request, &wallet).await?;
 
     Ok(())
 }

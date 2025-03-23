@@ -11,8 +11,8 @@ pub struct Settings {
 
 #[derive(Debug, Deserialize)]
 pub struct WalletConfig {
-    private_key: String,
-    public_key: String,
+    pub private_key: String,
+    pub public_key: String,
 }
 
 fn parse_config<S>(content: S) -> Result<Settings, ConfigError>
