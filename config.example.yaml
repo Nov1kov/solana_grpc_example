@@ -1,8 +1,12 @@
-# Solana GRPC Configuration
-x_token: "b2b972"  # Your Shyft API token
-endpoint: "https://grpc.ny.shyft.to"
+shyft_grpc:
+  url: "https://grpc.ny.shyft.to"
+  x_token: "1234"
 
-# Solana Wallet Configuration
+shyft_rpc:
+  url: "https://api.shyft.to"
+  api_key: "1234"
+  network: "devnet"
+
 wallet:
   private_key: "your_solana_private_key_here"
   public_key: "your_solana_public_key_here"

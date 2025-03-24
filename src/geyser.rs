@@ -11,6 +11,7 @@ use yellowstone_grpc_proto::geyser::{
 use yellowstone_grpc_proto::geyser::subscribe_update::UpdateOneof;
 use yellowstone_grpc_proto::tonic::codegen::tokio_stream::StreamExt;
 use tracing::*;
+use crate::shyft_api::ShyftClient;
 use crate::wallet::Wallet;
 
 pub fn get_block_subscribe_request() -> SubscribeRequest {
@@ -40,7 +41,8 @@ pub fn get_block_subscribe_request() -> SubscribeRequest {
 pub async fn geyser_subscribe(
     mut _client: GeyserGrpcClient<impl Interceptor>,
     request: SubscribeRequest,
-    wallet: &Wallet
+    wallet: &Wallet,
+    shyft_client: &ShyftClient
 ) -> anyhow::Result<()> {
     let (mut subscribe_tx, mut stream) = _client.subscribe_with_request(Some(request)).await?;
 
@@ -60,6 +62,12 @@ pub async fn geyser_subscribe(
                         if let Ok(pubkey) = Pubkey::from_str("DSUby69eVtXoDnmaQ4qQQtS5fJeE2omXWBA2qCxe8yTg") {
                             if let Ok(tx) = wallet.sign_sol_transfer(&pubkey, 10000, block_hash) {
                                 println!("tx: {}", tx);
+                                let txn_result = shyft_client.send_transaction(tx).await;
+                                if let Ok(txn_result) = txn_result {
+                                    println!("txn_result: {:?}", txn_result);
+                                } else {
+                                    error!("error: {:?}", txn_result);
+                                }
                             }
                         }
                     }

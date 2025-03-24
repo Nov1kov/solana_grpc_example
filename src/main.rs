@@ -55,11 +55,11 @@ async fn main() -> anyhow::Result<()> {
 
     let settings = load_config(&args.config_file);
 
-    info!("Connecting to endpoint: {}", settings.endpoint);
+    info!("Connecting to endpoint: {}", settings.shyft_grpc.url);
 
-    let client = GeyserGrpcClient::build_from_shared(settings.endpoint)
+    let client = GeyserGrpcClient::build_from_shared(settings.shyft_grpc.url)
         .unwrap()
-        .x_token(Some(&settings.x_token))
+        .x_token(Some(&settings.shyft_grpc.x_token))
         .unwrap()
         .connect_timeout(Duration::from_secs(10))
         .timeout(Duration::from_secs(10))
@@ -73,7 +73,9 @@ async fn main() -> anyhow::Result<()> {
 
     let request = geyser::get_block_subscribe_request();
 
-    geyser::geyser_subscribe(client, request, &wallet).await?;
+    let shyft_client = shyft_api::ShyftClient::new(&settings.shyft_rpc.url, &settings.shyft_rpc.api_key, &settings.shyft_rpc.network);
+
+    geyser::geyser_subscribe(client, request, &wallet, &shyft_client).await?;
 
     Ok(())
 }
