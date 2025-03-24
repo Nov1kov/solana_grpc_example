@@ -1,8 +1,5 @@
 use std::collections::HashMap;
-use std::str::FromStr;
-use std::time::{ Duration, SystemTime, UNIX_EPOCH };
-use solana_client::nonblocking::rpc_client::RpcClient;
-use solana_sdk::pubkey::Pubkey;
+use std::time::Duration;
 use tokio::sync::mpsc;
 use yellowstone_grpc_client::{ClientTlsConfig, GeyserGrpcClient, Interceptor };
 use yellowstone_grpc_proto::geyser::{
@@ -13,8 +10,7 @@ use yellowstone_grpc_proto::geyser::{
 use yellowstone_grpc_proto::geyser::subscribe_update::UpdateOneof;
 use yellowstone_grpc_proto::tonic::codegen::tokio_stream::StreamExt;
 use tracing::*;
-use crate::app::config::{ Settings, ShyftGrpcConfig };
-use crate::solana::wallet::Wallet;
+use crate::app::config::ShyftGrpcConfig;
 
 pub fn get_block_subscribe_request() -> SubscribeRequest {
     let mut blocks = HashMap::new();

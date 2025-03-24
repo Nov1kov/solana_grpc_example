@@ -7,10 +7,9 @@ use std::time::Duration;
 use clap::{Parser, Subcommand};
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::{Keypair, Signer};
+use solana_sdk::signature::Keypair;
 use tokio::sync::mpsc;
 use tracing::*;
-use yellowstone_grpc_client::{ClientTlsConfig, GeyserGrpcClient};
 use app::config::load_config;
 use solana::{geyser, wallet};
 use crate::actions::executor::TransactionAction;
@@ -60,7 +59,8 @@ async fn main() -> anyhow::Result<()> {
     let settings = load_config(&args.config_file);
     let settings_clone = settings.clone();
     let (tx, mut rx) = mpsc::channel::<BlockchainMessage>(100);
-    let keypair: Keypair = Keypair::from_base58_string(&settings.wallet.private_key);
+    let keypair = Keypair::from_base58_string(&settings.wallet.private_key);
+    let rpc_client = RpcClient::new(settings.solana_rpc.url.clone());
 
     tokio::spawn(async move {
         run_geyser_client_with_retry(settings_clone, tx.clone()).await;
@@ -69,9 +69,10 @@ async fn main() -> anyhow::Result<()> {
     let mut actions = vec![];
     if let Some(send_sol_action) = settings.actions.transfer_on_every_block {
         actions.push(TransactionAction::SendSol(actions::send_sol::SendSolAction::new(
-            &keypair.pubkey(),
+            keypair,
             &Pubkey::from_str(&send_sol_action.recipient)?,
             send_sol_action.amount,
+            rpc_client,
         )));
     }
 

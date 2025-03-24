@@ -20,7 +20,7 @@ pub async fn receiver(
                 for action in actions.iter() {
                     match action {
                         TransactionAction::SendSol(action) => {
-                            action.execute(&blockhash);
+                            let _ = action.execute(&blockhash).await;
                         }
                     }
                 }
