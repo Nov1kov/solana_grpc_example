@@ -13,7 +13,6 @@ use yellowstone_grpc_proto::geyser::subscribe_update::UpdateOneof;
 use yellowstone_grpc_proto::tonic::codegen::tokio_stream::StreamExt;
 use tracing::*;
 use crate::app::config::{ Settings, ShyftGrpcConfig };
-use crate::solana::shyft_api::ShyftClient;
 use crate::solana::wallet::Wallet;
 
 pub fn get_block_subscribe_request() -> SubscribeRequest {
@@ -44,10 +43,9 @@ pub async fn geyser_subscribe(
     mut _client: GeyserGrpcClient<impl Interceptor>,
     request: SubscribeRequest,
     wallet: &Wallet,
-    shyft_client: &ShyftClient,
     rpc_client: &RpcClient
 ) -> anyhow::Result<()> {
-    let (mut subscribe_tx, mut stream) = _client.subscribe_with_request(Some(request)).await?;
+    let (_, mut stream) = _client.subscribe_with_request(Some(request)).await?;
 
     info!("stream opened");
     while let Some(message) = stream.next().await {
@@ -55,12 +53,6 @@ pub async fn geyser_subscribe(
             Ok(msg) => {
                 match msg.update_oneof {
                     Some(UpdateOneof::Block(msg)) => {
-                        let slot: &u64 = &msg.slot;
-                        let slot_cloned = slot.clone();
-                        let block_time = SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .expect("Time went backwards")
-                            .as_secs() as i64;
                         let recent_blockhash: &str = if
                             let Ok(recent_blockhash) = rpc_client.get_latest_blockhash().await
                         {
@@ -74,38 +66,20 @@ pub async fn geyser_subscribe(
                                 "DSUby69eVtXoDnmaQ4qQQtS5fJeE2omXWBA2qCxe8yTg"
                             )
                         {
-                            if true {
-                                let tx = wallet.get_signed_transaction(
-                                    &pubkey,
-                                    1000000,
-                                    recent_blockhash
-                                );
-                                println!("tx: {:?}", tx);
-                                if let Ok(tx) = tx {
-                                    let txn_result = rpc_client.send_and_confirm_transaction(
-                                        &tx
-                                    ).await;
-                                    if let Ok(txn_result) = txn_result {
-                                        info!("tx sent: {:#?}", txn_result);
-                                    } else {
-                                        error!("send tx error: {:#?}", txn_result);
-                                    }
-                                }
-                            } else {
-                                if
-                                    let Ok(tx) = wallet.sign_sol_transfer(
-                                        &pubkey,
-                                        100000,
-                                        recent_blockhash
-                                    )
-                                {
-                                    println!("tx: {}", tx);
-                                    let txn_result = shyft_client.send_transaction(tx).await;
-                                    if let Ok(txn_result) = txn_result {
-                                        info!("tx sent: {:#?}", txn_result);
-                                    } else {
-                                        error!("error: {:#?}", txn_result);
-                                    }
+                            let tx = wallet.get_signed_transaction(
+                                &pubkey,
+                                1000000,
+                                recent_blockhash
+                            );
+                            println!("tx: {:?}", tx);
+                            if let Ok(tx) = tx {
+                                let txn_result = rpc_client.send_and_confirm_transaction(
+                                    &tx
+                                ).await;
+                                if let Ok(txn_result) = txn_result {
+                                    info!("tx sent: {:#?}", txn_result);
+                                } else {
+                                    error!("send tx error: {:#?}", txn_result);
                                 }
                             }
                         }

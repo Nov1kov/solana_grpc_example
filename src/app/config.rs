@@ -6,7 +6,7 @@ use config::{Config, ConfigError, Source};
 pub struct Settings {
     pub shyft_grpc: ShyftGrpcConfig,
     pub wallet: WalletConfig,
-    pub shyft_rpc: ShyftRpcConfig,
+    pub solana_rpc: SolanaRpcConfig,
     pub actions: Actions,
 }
 
@@ -23,10 +23,9 @@ pub struct WalletConfig {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ShyftRpcConfig {
+pub struct SolanaRpcConfig {
     pub url: String,
-    pub api_key: String,
-    pub network: String,
+    pub is_prod: bool,
 }
 
 // Actions configuration structure
@@ -74,8 +73,6 @@ pub fn load_config(file_name: &str) -> Settings {
 }
 
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -87,13 +84,14 @@ mod tests {
 shyft_grpc:
   url: "https://test.grpc.shyft.to"
   x_token: "test_token_12345"
+
 wallet:
   private_key: "test_private_key_abc123"
   public_key: "test_public_key_xyz789"
-shyft_rpc:
-  url: "https://test.shyft.to"
-  api_key: "test_api_key_12345"
-  network: "test_network"
+
+solana_rpc:
+  url: "https://devnet-rpc.shyft.to?api_key=12345"
+  is_prod: false
 
 actions:
   transfer_on_every_block:
@@ -108,9 +106,8 @@ actions:
         assert_eq!(settings.shyft_grpc.url, "https://test.grpc.shyft.to");
         assert_eq!(settings.wallet.private_key, "test_private_key_abc123");
         assert_eq!(settings.wallet.public_key, "test_public_key_xyz789");
-        assert_eq!(settings.shyft_rpc.url, "https://test.shyft.to");
-        assert_eq!(settings.shyft_rpc.api_key, "test_api_key_12345");
-        assert_eq!(settings.shyft_rpc.network, "test_network");
+        assert_eq!(settings.solana_rpc.url, "https://devnet-rpc.shyft.to?api_key=12345");
+        assert_eq!(settings.solana_rpc.is_prod, false);
         let action = settings.actions.transfer_on_every_block.unwrap();
         assert_eq!(action.recipient, "DSUby69eVtXoDnmaQ4qQQtS5fJeE2omXWBA2qCxe8yTg");
         assert_eq!(action.amount, 100000);

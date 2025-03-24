@@ -60,13 +60,10 @@ async fn main() -> anyhow::Result<()> {
             let wallet = wallet::Wallet::new(&settings.wallet.private_key);
 
             let request = geyser::get_block_subscribe_request();
+
+            let rpc_client = RpcClient::new(settings.solana_rpc.url);
         
-            let shyft_client = shyft_api::ShyftClient::new(&settings.shyft_rpc.url, &settings.shyft_rpc.api_key, &settings.shyft_rpc.network);
-        
-            // Create an RPC client to interact with the Solana blockchain
-            let rpc_client = RpcClient::new("TODO".to_string());
-        
-            geyser::geyser_subscribe(client, request, &wallet, &shyft_client, &rpc_client).await?;
+            geyser::geyser_subscribe(client, request, &wallet, &rpc_client).await?;
         },
         Err(e) => {
             // sleep for recoonect

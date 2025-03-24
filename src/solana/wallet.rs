@@ -68,19 +68,4 @@ impl Wallet {
 
         Ok(transaction)
     }
-
-    pub fn sign_sol_transfer(
-        &self,
-        recipient_pubkey: &Pubkey,
-        amount_lamports: u64,
-        recent_blockhash: &str
-    ) -> Result<String, Box<dyn std::error::Error>> {
-        let transaction = self.get_signed_transaction(recipient_pubkey, amount_lamports, recent_blockhash)?;
-
-        // Сериализация и кодирование транзакции в base64
-        let serialized = bincode::serialize(&transaction)?;
-        let encoded_transaction = BASE64_STANDARD.encode(serialized);
-
-        Ok(encoded_transaction)
-    }
 }
