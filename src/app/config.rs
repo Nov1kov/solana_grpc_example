@@ -7,6 +7,7 @@ pub struct Settings {
     pub shyft_grpc: ShyftGrpcConfig,
     pub wallet: WalletConfig,
     pub shyft_rpc: ShyftRpcConfig,
+    pub actions: Actions,
 }
 
 #[derive(Debug, Deserialize)]
@@ -26,6 +27,26 @@ pub struct ShyftRpcConfig {
     pub url: String,
     pub api_key: String,
     pub network: String,
+}
+
+// Actions configuration structure
+#[derive(Debug, Deserialize)]
+struct Actions {
+    #[serde(default)]
+    transfer_on_every_block: Option<TransferAction>,
+    // Можно добавить другие типы действий здесь
+}
+
+#[derive(Debug, Deserialize)]
+struct TransferAction {
+    recipient: String,
+    amount: u64,
+}
+
+#[derive(Debug)]
+enum ActionType {
+    Transfer(TransferAction),
+    // Другие типы действий можно добавить здесь
 }
 
 fn parse_config<S>(content: S) -> Result<Settings, ConfigError>
@@ -73,6 +94,11 @@ shyft_rpc:
   url: "https://test.shyft.to"
   api_key: "test_api_key_12345"
   network: "test_network"
+
+actions:
+  transfer_on_every_block:
+    recipient: "DSUby69eVtXoDnmaQ4qQQtS5fJeE2omXWBA2qCxe8yTg"
+    amount: 100000
 "#;
 
         let content = config::File::from_str(yaml_content, FileFormat::Yaml);
@@ -85,5 +111,8 @@ shyft_rpc:
         assert_eq!(settings.shyft_rpc.url, "https://test.shyft.to");
         assert_eq!(settings.shyft_rpc.api_key, "test_api_key_12345");
         assert_eq!(settings.shyft_rpc.network, "test_network");
+        let action = settings.actions.transfer_on_every_block.unwrap();
+        assert_eq!(action.recipient, "DSUby69eVtXoDnmaQ4qQQtS5fJeE2omXWBA2qCxe8yTg");
+        assert_eq!(action.amount, 100000);
     }
 }

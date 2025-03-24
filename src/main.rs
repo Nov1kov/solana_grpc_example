@@ -1,15 +1,15 @@
-mod config;
-mod geyser;
-mod wallet;
-mod shyft_api;
+mod app;
+mod solana;
+mod actions;
 
 use std::str::FromStr;
 use std::time::Duration;
 use clap::{Parser, Subcommand};
+use solana_client::nonblocking::rpc_client::RpcClient;
 use tracing::*;
-use yellowstone_grpc_client::{ ClientTlsConfig, GeyserGrpcClient };
-use crate::config::load_config;
-
+use yellowstone_grpc_client::{ClientTlsConfig, GeyserGrpcClient};
+use app::config::load_config;
+use solana::{geyser, shyft_api, wallet};
 
 #[derive(Parser, Debug)]
 #[command(name = "Solana tasker")]
@@ -55,27 +55,25 @@ async fn main() -> anyhow::Result<()> {
 
     let settings = load_config(&args.config_file);
 
-    info!("Connecting to endpoint: {}", settings.shyft_grpc.url);
+    match geyser::get_client(&settings.shyft_grpc).await {
+        Ok(client) => {
+            let wallet = wallet::Wallet::new(&settings.wallet.private_key);
 
-    let client = GeyserGrpcClient::build_from_shared(settings.shyft_grpc.url)
-        .unwrap()
-        .x_token(Some(&settings.shyft_grpc.x_token))
-        .unwrap()
-        .connect_timeout(Duration::from_secs(10))
-        .timeout(Duration::from_secs(10))
-        .tls_config(ClientTlsConfig::new().with_native_roots())
-        .unwrap()
-        .max_decoding_message_size(1024 * 1024 * 1024)
-        .connect().await
-        .unwrap();
-
-    let wallet = wallet::Wallet::new(&settings.wallet.private_key);
-
-    let request = geyser::get_block_subscribe_request();
-
-    let shyft_client = shyft_api::ShyftClient::new(&settings.shyft_rpc.url, &settings.shyft_rpc.api_key, &settings.shyft_rpc.network);
-
-    geyser::geyser_subscribe(client, request, &wallet, &shyft_client).await?;
+            let request = geyser::get_block_subscribe_request();
+        
+            let shyft_client = shyft_api::ShyftClient::new(&settings.shyft_rpc.url, &settings.shyft_rpc.api_key, &settings.shyft_rpc.network);
+        
+            // Create an RPC client to interact with the Solana blockchain
+            let rpc_client = RpcClient::new("TODO".to_string());
+        
+            geyser::geyser_subscribe(client, request, &wallet, &shyft_client, &rpc_client).await?;
+        },
+        Err(e) => {
+            // sleep for recoonect
+            tokio::time::sleep(Duration::from_secs(10)).await;
+            warn!("Failed to create Geyser client: {}", e);
+        }
+    };
 
     Ok(())
 }

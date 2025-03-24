@@ -4,10 +4,11 @@ use solana_sdk::hash::Hash;
 use solana_sdk::message::Message;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signer};
-use solana_sdk::system_instruction;
+use solana_sdk::{system_instruction, system_transaction};
 use solana_sdk::transaction::Transaction;
 use tracing::info;
 use base64::{engine::general_purpose, Engine as _};
+use base64::prelude::BASE64_STANDARD;
 
 pub fn create_wallet() -> Result<()> {
     let keypair = Keypair::new();
@@ -32,29 +33,53 @@ impl Wallet {
         }
     }
 
+    pub fn sign_transaction(
+        &self,
+        transaction: Transaction,
+        recent_blockhash: Hash
+    ) -> Transaction {
+        let mut transaction = transaction;
+        transaction.sign(&[&self.keypair], recent_blockhash);
+        transaction
+    }
+
+    pub fn get_signed_transaction(
+        &self,
+        recipient_pubkey: &Pubkey,
+        amount_lamports: u64,
+        recent_blockhash: &str
+    ) -> Result<Transaction, Box<dyn std::error::Error>> {
+        let from_pubkey = self.keypair.pubkey();
+        let instruction = system_instruction::transfer(
+            &from_pubkey,
+            recipient_pubkey,
+            amount_lamports,
+        );
+
+        // Создание сообщения транзакции
+        let message = Message::new(&[instruction], Some(&from_pubkey));
+
+        // Создание и подпись транзакции
+        let mut transaction = Transaction::new_unsigned(message);
+        // println!("recent_blockhash str: {}", recent_blockhash);
+        let recent_blockhash = Hash::from_str(recent_blockhash).unwrap();
+        // println!("recent_blockhash hash: {:?}", recent_blockhash);
+        transaction.sign(&[&self.keypair], recent_blockhash);
+
+        Ok(transaction)
+    }
+
     pub fn sign_sol_transfer(
         &self,
         recipient_pubkey: &Pubkey,
         amount_lamports: u64,
         recent_blockhash: &str
     ) -> Result<String, Box<dyn std::error::Error>> {
-        // Создание инструкции для перевода SOL
-        let instruction = system_instruction::transfer(
-            &self.keypair.pubkey(),
-            recipient_pubkey,
-            amount_lamports,
-        );
-
-        // Создание сообщения транзакции
-        let message = Message::new(&[instruction], Some(&self.keypair.pubkey()));
-
-        // Создание и подпись транзакции
-        let mut transaction = Transaction::new_unsigned(message);
-        transaction.sign(&[&self.keypair], Hash::from_str(recent_blockhash).unwrap());
+        let transaction = self.get_signed_transaction(recipient_pubkey, amount_lamports, recent_blockhash)?;
 
         // Сериализация и кодирование транзакции в base64
-        let serialized_transaction = bincode::serialize(&transaction)?;
-        let encoded_transaction = general_purpose::STANDARD.encode(serialized_transaction);
+        let serialized = bincode::serialize(&transaction)?;
+        let encoded_transaction = BASE64_STANDARD.encode(serialized);
 
         Ok(encoded_transaction)
     }
