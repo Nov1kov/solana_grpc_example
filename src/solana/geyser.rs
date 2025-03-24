@@ -3,7 +3,8 @@ use std::str::FromStr;
 use std::time::{ Duration, SystemTime, UNIX_EPOCH };
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::pubkey::Pubkey;
-use yellowstone_grpc_client::{ ClientTlsConfig, GeyserGrpcClient, Interceptor };
+use tokio::sync::mpsc;
+use yellowstone_grpc_client::{ClientTlsConfig, GeyserGrpcClient, Interceptor };
 use yellowstone_grpc_proto::geyser::{
     CommitmentLevel,
     SubscribeRequest,
@@ -39,50 +40,23 @@ pub fn get_block_subscribe_request() -> SubscribeRequest {
     }
 }
 
-pub async fn geyser_subscribe(
-    mut _client: GeyserGrpcClient<impl Interceptor>,
-    request: SubscribeRequest,
-    wallet: &Wallet,
-    rpc_client: &RpcClient
-) -> anyhow::Result<()> {
-    let (_, mut stream) = _client.subscribe_with_request(Some(request)).await?;
+#[derive(Debug, Clone)]
+pub enum BlockchainMessage {
+    RecentBlockhash(String),
+}
 
-    info!("stream opened");
+pub async fn geyser_subscribe(
+    mut client: GeyserGrpcClient<impl Interceptor>,
+    request: SubscribeRequest,
+    tx: mpsc::Sender<BlockchainMessage>
+) -> anyhow::Result<()> {
+    let (_, mut stream) = client.subscribe_with_request(Some(request)).await?;
     while let Some(message) = stream.next().await {
         match message {
             Ok(msg) => {
                 match msg.update_oneof {
                     Some(UpdateOneof::Block(msg)) => {
-                        let recent_blockhash: &str = if
-                            let Ok(recent_blockhash) = rpc_client.get_latest_blockhash().await
-                        {
-                            println!("Devnet recent_blockhash: {:?}", recent_blockhash);
-                            &recent_blockhash.to_string()
-                        } else {
-                            &msg.blockhash
-                        };
-                        if
-                            let Ok(pubkey) = Pubkey::from_str(
-                                "DSUby69eVtXoDnmaQ4qQQtS5fJeE2omXWBA2qCxe8yTg"
-                            )
-                        {
-                            let tx = wallet.get_signed_transaction(
-                                &pubkey,
-                                1000000,
-                                recent_blockhash
-                            );
-                            println!("tx: {:?}", tx);
-                            if let Ok(tx) = tx {
-                                let txn_result = rpc_client.send_and_confirm_transaction(
-                                    &tx
-                                ).await;
-                                if let Ok(txn_result) = txn_result {
-                                    info!("tx sent: {:#?}", txn_result);
-                                } else {
-                                    error!("send tx error: {:#?}", txn_result);
-                                }
-                            }
-                        }
+                        tx.send(BlockchainMessage::RecentBlockhash(msg.blockhash)).await?;
                     }
                     None => {
                         error!("update not found in the message");

@@ -6,10 +6,13 @@ use std::str::FromStr;
 use std::time::Duration;
 use clap::{Parser, Subcommand};
 use solana_client::nonblocking::rpc_client::RpcClient;
+use tokio::sync::mpsc;
 use tracing::*;
 use yellowstone_grpc_client::{ClientTlsConfig, GeyserGrpcClient};
 use app::config::load_config;
-use solana::{geyser, shyft_api, wallet};
+use solana::{geyser, wallet};
+use crate::app::config::Settings;
+use crate::solana::geyser::BlockchainMessage;
 
 #[derive(Parser, Debug)]
 #[command(name = "Solana tasker")]
@@ -35,42 +38,56 @@ enum Command {
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     tracing_subscriber
-        ::fmt()
+    ::fmt()
         .with_target(false)
         .compact()
-        .with_max_level(Level::from_str(&args.log_level).unwrap())
+        .with_max_level(Level::from_str(&args.log_level)?)
         .init();
-
 
     match args.command {
         Some(Command::CreateWallet) => {
             // Generate and display wallet
-            wallet::create_wallet()?;
-            return Ok(());
+            return wallet::create_wallet();
         }
         None => {
-            // Default behavior - continue with the original program
+            // Default behavior
         }
     }
 
     let settings = load_config(&args.config_file);
+    let settings_clone = settings.clone();
+    let (tx, mut rx) = mpsc::channel::<BlockchainMessage>(100);
 
-    match geyser::get_client(&settings.shyft_grpc).await {
-        Ok(client) => {
-            let wallet = wallet::Wallet::new(&settings.wallet.private_key);
+    tokio::spawn(async move {
+        run_geyser_client_with_retry(settings_clone, tx.clone()).await;
+    });
 
-            let request = geyser::get_block_subscribe_request();
-
-            let rpc_client = RpcClient::new(settings.solana_rpc.url);
-        
-            geyser::geyser_subscribe(client, request, &wallet, &rpc_client).await?;
-        },
-        Err(e) => {
-            // sleep for recoonect
-            tokio::time::sleep(Duration::from_secs(10)).await;
-            warn!("Failed to create Geyser client: {}", e);
-        }
-    };
-
+    actions::executor::receiver(&mut rx).await;
     Ok(())
+}
+
+async fn run_geyser_client_with_retry(settings: Settings, tx: mpsc::Sender<BlockchainMessage>) {
+    const RETRY_DELAY: u64 = 10; // Retry delay in seconds
+    let request = geyser::get_block_subscribe_request();
+
+    loop {
+        match geyser::get_client(&settings.shyft_grpc).await {
+            Ok(client) => {
+                match geyser::geyser_subscribe(client, request.clone(), tx.clone()).await {
+                    Ok(_) => {
+                        info!("Subscribed");
+                    },
+                    Err(e) => {
+                        warn!("Subscription error: {}", e);
+                    }
+                }
+            },
+            Err(e) => {
+                warn!("Failed to create Geyser client: {}", e);
+            }
+        };
+
+        info!("Reconnecting in {} seconds...", RETRY_DELAY);
+        tokio::time::sleep(Duration::from_secs(RETRY_DELAY)).await;
+    }
 }

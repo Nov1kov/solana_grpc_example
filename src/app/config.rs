@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 use serde::Deserialize;
-use config::{Config, ConfigError, Source};
+use config::{ Config, ConfigError, Source };
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Settings {
     pub shyft_grpc: ShyftGrpcConfig,
     pub wallet: WalletConfig,
@@ -10,51 +10,48 @@ pub struct Settings {
     pub actions: Actions,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct ShyftGrpcConfig {
     pub url: String,
     pub x_token: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct WalletConfig {
     pub private_key: String,
     pub public_key: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct SolanaRpcConfig {
     pub url: String,
     pub is_prod: bool,
 }
 
 // Actions configuration structure
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct Actions {
     #[serde(default)]
     transfer_on_every_block: Option<TransferAction>,
     // Можно добавить другие типы действий здесь
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct TransferAction {
     recipient: String,
     amount: u64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Deserialize)]
 enum ActionType {
     Transfer(TransferAction),
     // Другие типы действий можно добавить здесь
 }
 
 fn parse_config<S>(content: S) -> Result<Settings, ConfigError>
-where
-    S: Source + Send + Sync + 'static,
+    where S: Source + Send + Sync + 'static
 {
-    let config = Config::builder()
-        .add_source(content)
-        .build()?;
+    let config = Config::builder().add_source(content).build()?;
     config.try_deserialize()
 }
 
@@ -72,7 +69,6 @@ pub fn load_config(file_name: &str) -> Settings {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -80,7 +76,8 @@ mod tests {
 
     #[test]
     fn test_load_config() {
-        let yaml_content = r#"
+        let yaml_content =
+            r#"
 shyft_grpc:
   url: "https://test.grpc.shyft.to"
   x_token: "test_token_12345"

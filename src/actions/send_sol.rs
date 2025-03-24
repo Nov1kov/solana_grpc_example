@@ -17,10 +17,8 @@ impl SendSolAction {
             amount_lamports,
         );
 
-        // Создание сообщения транзакции
         let message = Message::new(&[instruction], Some(&from_pubkey));
 
-        // Создание и подпись транзакции
         let mut transaction = Transaction::new_unsigned(message);
         Self { transaction }
     }
