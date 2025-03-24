@@ -2,11 +2,15 @@ shyft_grpc:
   url: "https://grpc.ny.shyft.to"
   x_token: "1234"
 
-shyft_rpc:
-  url: "https://api.shyft.to"
-  api_key: "1234"
-  network: "devnet"
+solana_rpc:
+  url: "https://devnet-rpc.shyft.to?api_key=12345"
+  is_prod: false
 
 wallet:
   private_key: "your_solana_private_key_here"
   public_key: "your_solana_public_key_here"
+
+actions:
+  transfer_on_every_block:
+    recipient: "DSUby69eVtXoDnmaQ4qQQtS5fJeE2omXWBA2qCxe8yTg"
+    amount: 100000

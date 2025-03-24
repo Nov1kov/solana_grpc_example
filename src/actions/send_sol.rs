@@ -4,13 +4,12 @@ use solana_sdk::signature::Signer;
 use solana_sdk::transaction::Transaction;
 use solana_sdk::system_instruction;
 
-struct SendSolAction {
+pub struct SendSolAction {
     transaction: Transaction,
 }
 
 impl SendSolAction {
-    pub fn new(recipient_pubkey: &Pubkey, amount_lamports: u64) -> Self {
-        let from_pubkey = self.keypair.pubkey();
+    pub fn new(from_pubkey: &Pubkey, recipient_pubkey: &Pubkey, amount_lamports: u64) -> Self {
         let instruction = system_instruction::transfer(
             &from_pubkey,
             recipient_pubkey,
@@ -21,5 +20,9 @@ impl SendSolAction {
 
         let mut transaction = Transaction::new_unsigned(message);
         Self { transaction }
+    }
+
+    pub fn execute(&self, blockhash: &str) -> anyhow::Result<()> {
+        Ok(())
     }
 }

@@ -30,16 +30,16 @@ pub struct SolanaRpcConfig {
 
 // Actions configuration structure
 #[derive(Debug, Clone, Deserialize)]
-struct Actions {
+pub struct Actions {
     #[serde(default)]
-    transfer_on_every_block: Option<TransferAction>,
+    pub transfer_on_every_block: Option<TransferAction>,
     // Можно добавить другие типы действий здесь
 }
 
 #[derive(Debug, Clone, Deserialize)]
-struct TransferAction {
-    recipient: String,
-    amount: u64,
+pub struct TransferAction {
+    pub recipient: String,
+    pub amount: u64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
