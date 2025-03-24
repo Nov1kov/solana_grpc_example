@@ -10,7 +10,8 @@ use yellowstone_grpc_proto::geyser::{
 use yellowstone_grpc_proto::geyser::subscribe_update::UpdateOneof;
 use yellowstone_grpc_proto::tonic::codegen::tokio_stream::StreamExt;
 use tracing::*;
-use crate::app::config::ShyftGrpcConfig;
+use crate::app::config::{Settings, ShyftGrpcConfig};
+use crate::solana::geyser;
 
 pub fn get_block_subscribe_request() -> SubscribeRequest {
     let mut blocks = HashMap::new();
@@ -86,4 +87,30 @@ pub async fn get_client(
     info!("Connecting to endpoint: {}", shyft_grpc_config.url);
 
     Ok(client)
+}
+
+pub async fn run_geyser_client_with_retry(settings: Settings, tx: mpsc::Sender<BlockchainMessage>) {
+    const RETRY_DELAY: u64 = 10; // Retry delay in seconds
+    let request = get_block_subscribe_request();
+
+    loop {
+        match get_client(&settings.shyft_grpc).await {
+            Ok(client) => {
+                match geyser::geyser_subscribe(client, request.clone(), tx.clone()).await {
+                    Ok(_) => {
+                        info!("Subscribed");
+                    },
+                    Err(e) => {
+                        warn!("Subscription error: {}", e);
+                    }
+                }
+            },
+            Err(e) => {
+                warn!("Failed to create Geyser client: {}", e);
+            }
+        };
+
+        info!("Reconnecting in {} seconds...", RETRY_DELAY);
+        tokio::time::sleep(Duration::from_secs(RETRY_DELAY)).await;
+    }
 }

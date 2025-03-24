@@ -28,7 +28,6 @@ pub struct SolanaRpcConfig {
     pub is_prod: bool,
 }
 
-// Actions configuration structure
 #[derive(Debug, Clone, Deserialize)]
 pub struct Actions {
     #[serde(default)]
@@ -40,12 +39,6 @@ pub struct Actions {
 pub struct TransferAction {
     pub recipient: String,
     pub amount: u64,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-enum ActionType {
-    Transfer(TransferAction),
-    // Другие типы действий можно добавить здесь
 }
 
 fn parse_config<S>(content: S) -> Result<Settings, ConfigError>

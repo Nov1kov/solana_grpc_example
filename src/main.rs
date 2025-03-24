@@ -2,19 +2,17 @@ mod app;
 mod solana;
 mod actions;
 
-use std::str::FromStr;
-use std::time::Duration;
+use crate::actions::executor::BotAction;
+use crate::solana::geyser::{run_geyser_client_with_retry, BlockchainMessage};
+use app::config::load_config;
 use clap::{Parser, Subcommand};
+use solana::wallet;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
+use std::str::FromStr;
 use tokio::sync::mpsc;
 use tracing::*;
-use app::config::load_config;
-use solana::{geyser, wallet};
-use crate::actions::executor::TransactionAction;
-use crate::app::config::Settings;
-use crate::solana::geyser::BlockchainMessage;
 
 #[derive(Parser, Debug)]
 #[command(name = "Solana tasker")]
@@ -35,6 +33,7 @@ enum Command {
     /// Generate a new Solana wallet (keypair)
     CreateWallet,
 }
+
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -67,7 +66,7 @@ async fn main() -> anyhow::Result<()> {
     });
 
     if let Some(send_sol_action) = settings.actions.transfer_on_every_block {
-        let action = TransactionAction::SendSol(actions::send_sol::SendSolAction::new(
+        let action = BotAction::SendSol(actions::send_sol::SendSolAction::new(
             keypair,
             &Pubkey::from_str(&send_sol_action.recipient)?,
             send_sol_action.amount,
@@ -80,30 +79,4 @@ async fn main() -> anyhow::Result<()> {
     }
     
     Ok(())
-}
-
-async fn run_geyser_client_with_retry(settings: Settings, tx: mpsc::Sender<BlockchainMessage>) {
-    const RETRY_DELAY: u64 = 10; // Retry delay in seconds
-    let request = geyser::get_block_subscribe_request();
-
-    loop {
-        match geyser::get_client(&settings.shyft_grpc).await {
-            Ok(client) => {
-                match geyser::geyser_subscribe(client, request.clone(), tx.clone()).await {
-                    Ok(_) => {
-                        info!("Subscribed");
-                    },
-                    Err(e) => {
-                        warn!("Subscription error: {}", e);
-                    }
-                }
-            },
-            Err(e) => {
-                warn!("Failed to create Geyser client: {}", e);
-            }
-        };
-
-        info!("Reconnecting in {} seconds...", RETRY_DELAY);
-        tokio::time::sleep(Duration::from_secs(RETRY_DELAY)).await;
-    }
 }

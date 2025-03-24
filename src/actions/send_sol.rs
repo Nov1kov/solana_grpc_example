@@ -33,8 +33,9 @@ impl SendSolAction {
         }
     }
 
+    #[inline]
     pub async fn execute(&self, blockhash: &str) -> anyhow::Result<()> {
-        // NOTE: grpc doesn't support devnet, so we need to use rpc for devnet
+        // NOTE: grpc doesn't support devnet, so we need to use rpc to get "latest_blockhash"
         let recent_blockhash: Hash = if !self.is_prod {
             self.rpc_client.get_latest_blockhash().await?
         } else {
@@ -46,7 +47,7 @@ impl SendSolAction {
 
         let txn_result = self.rpc_client.send_and_confirm_transaction(&transaction).await;
         if let Ok(txn_result) = txn_result {
-            info!("tx sent: {:#?}", txn_result);
+            info!("tx sent: {:?}", txn_result);
         } else {
             error!("send tx error: {:#?}", txn_result);
         }
