@@ -3,7 +3,7 @@ use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::hash::Hash;
 use solana_sdk::message::Message;
 use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::{Keypair, Signer};
+use solana_sdk::signature::{ Keypair, Signer };
 use solana_sdk::transaction::Transaction;
 use solana_sdk::system_instruction;
 use tracing::*;
@@ -12,24 +12,31 @@ pub struct SendSolAction {
     transaction: Transaction,
     keypair: Keypair,
     rpc_client: RpcClient,
+    is_prod: bool,
 }
 
 impl SendSolAction {
-    pub fn new(keypair: Keypair, recipient_pubkey: &Pubkey, amount_lamports: u64, rpc_client: RpcClient) -> Self {
+    pub fn new(
+        keypair: Keypair,
+        recipient_pubkey: &Pubkey,
+        amount_lamports: u64,
+        rpc_client: RpcClient,
+        is_prod: bool
+    ) -> Self {
         let from_pubkey = &keypair.pubkey();
 
         Self {
             transaction: prepare_transaction(from_pubkey, recipient_pubkey, amount_lamports),
             keypair,
             rpc_client,
+            is_prod,
         }
     }
 
     pub async fn execute(&self, blockhash: &str) -> anyhow::Result<()> {
-        let recent_blockhash: Hash = if
-            let Ok(recent_blockhash) = self.rpc_client.get_latest_blockhash().await
-        {
-            recent_blockhash
+        // NOTE: grpc doesn't support devnet, so we need to use rpc for devnet
+        let recent_blockhash: Hash = if !self.is_prod {
+            self.rpc_client.get_latest_blockhash().await?
         } else {
             Hash::from_str(blockhash)?
         };
@@ -53,11 +60,7 @@ fn prepare_transaction(
     recipient_pubkey: &Pubkey,
     amount_lamports: u64
 ) -> Transaction {
-    let instruction = system_instruction::transfer(
-        from_pubkey,
-        recipient_pubkey,
-        amount_lamports
-    );
+    let instruction = system_instruction::transfer(from_pubkey, recipient_pubkey, amount_lamports);
     let message = Message::new(&[instruction], Some(&from_pubkey));
     Transaction::new_unsigned(message)
 }

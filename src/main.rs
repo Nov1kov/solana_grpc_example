@@ -66,17 +66,19 @@ async fn main() -> anyhow::Result<()> {
         run_geyser_client_with_retry(settings_clone, tx.clone()).await;
     });
 
-    let mut actions = vec![];
     if let Some(send_sol_action) = settings.actions.transfer_on_every_block {
-        actions.push(TransactionAction::SendSol(actions::send_sol::SendSolAction::new(
+        let action = TransactionAction::SendSol(actions::send_sol::SendSolAction::new(
             keypair,
             &Pubkey::from_str(&send_sol_action.recipient)?,
             send_sol_action.amount,
             rpc_client,
-        )));
+            settings.solana_rpc.is_prod,
+        ));
+        actions::executor::receiver(&mut rx, action).await;
+    } else {
+        return Err(anyhow::anyhow!("No action to execute"));
     }
-
-    actions::executor::receiver(&mut rx, actions).await;
+    
     Ok(())
 }
 
