@@ -29,6 +29,7 @@ pub async fn receiver(
 
                 let active_tasks = MAX_CONCURRENT_TASKS - semaphore.available_permits();
                 if active_tasks > MAX_CONCURRENT_TASKS / 2 {
+                    // явно захлебывается программа, что-то тут делать
                     warn!("High task load: {} active tasks", active_tasks);
                 }
 
