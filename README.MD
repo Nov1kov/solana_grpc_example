@@ -2,6 +2,8 @@
 
 # How to use
 
+NOTE: работает только на unix или wsl на windows. 
+
 1. Создайте файл конфигурации `config.yaml` на основе `config.example.yaml`:
    - Скопируйте `config.example.yaml` в `config.yaml`:
      ```bash

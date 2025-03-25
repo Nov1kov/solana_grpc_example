@@ -23,26 +23,26 @@ pub async fn receiver(
     while let Some(message) = rx.recv().await {
         match message {
             BlockchainMessage::RecentBlockhash(blockhash) => {
-                let blockhash_clone = blockhash.clone();
-                let tx_action_clone = Arc::clone(&tx_action);
-                let permit = semaphore.clone().acquire_owned().await.unwrap();
+                if let Ok(permit) = semaphore.clone().acquire_owned().await {
+                    let blockhash_clone = blockhash.clone();
+                    let tx_action_clone = Arc::clone(&tx_action);
+                    let active_tasks = MAX_CONCURRENT_TASKS - semaphore.available_permits();
+                    if active_tasks > MAX_CONCURRENT_TASKS / 2 {
+                        // явно захлебывается программа, что-то тут делать
+                        warn!("High task load: {} active tasks", active_tasks);
+                    }
 
-                let active_tasks = MAX_CONCURRENT_TASKS - semaphore.available_permits();
-                if active_tasks > MAX_CONCURRENT_TASKS / 2 {
-                    // явно захлебывается программа, что-то тут делать
-                    warn!("High task load: {} active tasks", active_tasks);
-                }
-
-                task::spawn(async move {
-                    match &*tx_action_clone {
-                        BotAction::SendSol(action) => {
-                            if let Err(e) = action.execute(&blockhash_clone).await {
-                                error!("Failed to execute SendSol action: {:?}", e);
+                    task::spawn(async move {
+                        match &*tx_action_clone {
+                            BotAction::SendSol(action) => {
+                                if let Err(e) = action.execute(&blockhash_clone).await {
+                                    error!("Failed to execute SendSol action: {:?}", e);
+                                }
                             }
                         }
-                    }
-                    drop(permit);
-                });
+                        drop(permit);
+                    });
+                }
             }
         }
 
